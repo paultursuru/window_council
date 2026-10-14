@@ -1,0 +1,39 @@
+name: Ruby
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  specs:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        # 2.6 is what xbar runs (/usr/bin/ruby on macOS)
+        ruby-version: ['2.6', '3.4']
+    steps:
+    - uses: actions/checkout@v4
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby-version }}
+        bundler: none # the lockfile's Bundler needs a recent Ruby
+    - name: Install RSpec
+      run: gem install rspec -v '~> 3.13' --no-document
+    - name: Run specs
+      run: rspec
+
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+    - uses: actions/checkout@v4
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.4'
+        bundler-cache: true
+    - name: Run RuboCop
+      run: bundle exec rubocop

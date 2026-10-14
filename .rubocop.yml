@@ -1,0 +1,30 @@
+AllCops:
+  # xbar runs the plugin with macOS system Ruby (/usr/bin/ruby, 2.6)
+  TargetRubyVersion: 2.6
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - 'vendor/**/*'
+
+# Decision tables and report hashes read best in one piece
+Metrics/AbcSize:
+  Max: 30
+Metrics/MethodLength:
+  Max: 20
+Metrics/CyclomaticComplexity:
+  Max: 12
+Metrics/PerceivedComplexity:
+  Max: 13
+Metrics/ParameterLists:
+  CountKeywordArgs: false
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+
+# Physics notation: t (°C), rh (%), x
+Naming/MethodParameterName:
+  AllowedNames: [t, x, rh]
+
+# xbar metadata must stay on one line
+Layout/LineLength:
+  AllowedPatterns: ['<xbar\.']
