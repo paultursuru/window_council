@@ -14,25 +14,53 @@ class Menu
   end
 
   def lines
-    body = @verdict ? [*header, '---', *axes, '---', *outdoor, '---', *indoor] : error
-    body + ['---', page_link, "MétéoSuisse — #{FORECAST_NAME} | href=#{FORECAST_URL}", 'Rafraîchir | refresh=true']
+    body = @verdict ? [*header, '---', *axes, *airing, '---', *outdoor, '---', *indoor] : error
+    body + ['---', *page_links, "MétéoSuisse — #{FORECAST_NAME} | href=#{FORECAST_URL}", 'Rafraîchir | refresh=true']
   end
 
   private
 
   def header
-    [@verdict[:icon], '---', "#{@verdict[:label]} : #{@report[:reason]}"]
+    ["#{@verdict[:icon]}#{countdown}", '---', "#{@verdict[:label]} : #{@report[:reason]}"]
+  end
+
+  # While airing: when to close, then ⏰ once it is time
+  def countdown
+    open = (@report[:airing] || {})[:open]
+    return '' unless open && open[:close_at]
+
+    open[:due] ? ' ⏰' : " #{local_time(open[:close_at])}"
   end
 
   def axes
     temp = @report[:indoor][:temperature]
     humidity = @report[:axes][:humidity]
     temperature = @report[:axes][:temperature]
-    ["Humidité #{fmt(@report[:indoor][:humidity])} % · cible #{range_label(humidity[:target], '%')} → " \
+    ["Humidité #{fmt(@report[:indoor][:humidity])} % · idéal #{format('%g', humidity[:ideal])} % → " \
      "#{verdict_name(humidity[:verdict])} : #{humidity[:reason]}",
-     "Température #{fmt(temp)} °C · cible #{range_label(temperature[:target], '°C')} → " \
+     "Température #{fmt(temp)} °C · idéal #{format('%g', temperature[:ideal])} °C → " \
      "#{verdict_name(temperature[:verdict])} : #{temperature[:reason]}",
      "HR projetée de l'air extérieur à #{fmt(temp)} °C : #{fmt(@report[:projected_rh])} %"]
+  end
+
+  # Airing in progress, or how long to air
+  def airing
+    plan = @report[:airing] || {}
+    if (open = plan[:open])
+      ["#{WINDOWS[open[:windows]]} depuis #{time_label(open[:since])} · " \
+       "HR estimée #{fmt(open[:estimated_rh])} %#{close_hint(open)}"]
+    elsif (durations = plan[:durations])
+      ["Aérer jusqu'à #{fmt(plan[:target_rh])} % : 1 fenêtre ~#{duration_label(durations['one'])} · " \
+       "courant d'air ~#{duration_label(durations['cross'])}"]
+    else
+      []
+    end
+  end
+
+  def close_hint(open)
+    return '' unless open[:close_at]
+
+    open[:due] ? ' · cible atteinte : fermer' : " · fermer vers #{local_time(open[:close_at])}"
   end
 
   def outdoor
@@ -49,9 +77,11 @@ class Menu
 
   def indoor
     indoor = @report[:indoor]
-    ["INDOOR_TEMP = #{fmt(indoor[:temperature])} °C · INDOOR_RH = #{fmt(indoor[:humidity])} % " \
-     "(saisis à #{time_label(indoor[:entered_at])})",
-     'Modifier : Open Plugin… (⌘E) | color=gray']
+    settings = @report[:settings]
+    ["Intérieur : #{fmt(indoor[:temperature])} °C · #{fmt(indoor[:humidity])} % " \
+     "(relevé de #{time_label(indoor[:entered_at])})",
+     "Idéaux #{format('%g', settings[:temp_ideal])} °C et #{format('%g', settings[:rh_ideal])} % : " \
+     'Open Plugin… (⌘E) pour les changer | color=gray']
   end
 
   # "|" would start xbar options
@@ -59,7 +89,11 @@ class Menu
     ['🪟?', '---', *@report[:error].each_line.map { |l| l.chomp.tr('|', '/') }]
   end
 
-  def page_link
-    @save_error ? "⚠️ #{@save_error.tr('|', '/')}" : "Voir le détail… | href=\"#{HTML_FILE}\""
+  # The form needs the local server; with ⌥, the page file alone
+  def page_links
+    return ["⚠️ #{@save_error.tr('|', '/')}"] if @save_error
+
+    ["Saisir un relevé, voir le détail… | shell=#{RbConfig.ruby} param1=\"#{SERVER_FILE}\" terminal=false",
+     "Voir le détail, sans formulaire… | href=\"#{HTML_FILE}\" alternate=true"]
   end
 end

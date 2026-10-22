@@ -35,4 +35,11 @@ module History
     limit = now - (HISTORY_DAYS * 86_400)
     history.select { |e| DateTime.iso8601(e['recorded_at']).to_time >= limit }
   end
+
+  # Outdoor dew point measured closest to time, within 45 min, or nil
+  def dew_point_at(history, time)
+    gap = ->(e) { (DateTime.iso8601(e['measured_at']).to_time - time).abs }
+    closest = history.select { |e| e['measured_at'] && e['outdoor_dew_point'] }.min_by(&gap)
+    closest['outdoor_dew_point'] if closest && gap.call(closest) <= 45 * 60
+  end
 end

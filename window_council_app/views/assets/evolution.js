@@ -4,7 +4,10 @@
   const data = JSON.parse(document.getElementById('chart-data').textContent);
   const end = Date.parse(data.updated_at);
   const runs = data.history.map(e => Object.assign({ t: Date.parse(e.recorded_at) }, e)).sort((a, b) => a.t - b.t);
-  if (!runs.length) {
+  // Hygrometer readings, at the time entered in the form
+  const entries = data.readings.map(r => ({ t: Date.parse(r.at),
+    v: { indoor_temp: r.temperature, indoor_rh: r.humidity, windows: r.windows || 'closed' } })).sort((a, b) => a.t - b.t);
+  if (!runs.length && !entries.length) {
     document.getElementById('evolution').innerHTML = '<h2>Évolution</h2><p class="sub">L\'historique démarre ' +
       'au premier relevé réussi : les graphiques et les saisies apparaîtront ici.</p>';
     return;
@@ -16,7 +19,6 @@
     const pts = runs.map(e => ({ t: timeOf(e), v: valueOf(e) })).sort((a, b) => a.t - b.t);
     return pts.filter((p, i) => i === 0 || p.t !== pts[i - 1].t);
   };
-  const entries = series(enteredAt, e => e);
   const S = {
     indoorTemp: entries.map(p => ({ t: p.t, v: p.v.indoor_temp })),
     indoorRh: entries.map(p => ({ t: p.t, v: p.v.indoor_rh })),
@@ -24,11 +26,14 @@
     projectedRh: series(e => Math.max(enteredAt(e), measuredAt(e)), e => e.projected_rh),
   };
   const CHARTS = [
-    { el: document.getElementById('plot-temp'), unit: '°C', target: data.targets.temperature,
+    { el: document.getElementById('plot-temp'), unit: '°C', target: data.targets.temperature, ideal: data.ideals.temperature,
       series: [{ cls: 'indoor', pts: S.indoorTemp, entries: true }, { cls: 'outdoor', pts: S.outdoorTemp }] },
-    { el: document.getElementById('plot-rh'), unit: '%', target: data.targets.humidity,
+    { el: document.getElementById('plot-rh'), unit: '%', target: data.targets.humidity, ideal: data.ideals.humidity,
       series: [{ cls: 'indoor', pts: S.indoorRh, entries: true }, { cls: 'outdoor', pts: S.projectedRh }] },
   ];
+  // Windows open from a reading until the next one
+  const airings = entries.map((p, i) => ({ t0: p.t, t1: i + 1 < entries.length ? entries[i + 1].t : end, w: p.v.windows }))
+    .filter(a => a.w !== 'closed');
   const GAP = 30 * 60e3; // longer gaps are not joined (Mac asleep…)
   const VERDICTS = { open: 'ouvrir', close: 'fermer', indifferent: 'indifférent', conflict: 'conflit' };
   const RANGES = { 3: '3h', 24: '24h', 168: '7d' };
@@ -65,6 +70,7 @@
     const vis = c.series.map(s => visible(s.pts, t0));
     if (!vis.some(v => v.length)) { c.el.innerHTML = '<p class="sub empty">Pas encore de relevé sur cette période.</p>'; return; }
     const vals = [...c.target];
+    if (c.ideal != null) vals.push(c.ideal);
     vis.forEach(v => v.forEach(p => vals.push(p.v)));
     const step = niceStep(Math.min(...vals), Math.max(...vals));
     const lo = Math.floor(Math.min(...vals) / step) * step;
@@ -85,7 +91,13 @@
       svg += `<text x="${x(t)}" y="${H - 6}" text-anchor="middle">${tickMin >= 1440 ? day(t) : hhmm(t)}</text>`;
     }
     svg += `<line class="axis" x1="${M.l}" x2="${w - M.r}" y1="${H - M.b}" y2="${H - M.b}"/>`;
+    if (c.ideal != null) svg += `<line class="ideal" x1="${M.l}" x2="${w - M.r}" y1="${y(c.ideal)}" y2="${y(c.ideal)}"/>`;
     svg += `<g clip-path="url(#clip-${id})">`;
+    airings.forEach(a => {
+      if (a.t1 < t0) return;
+      svg += `<rect class="airing ${a.w}" x="${x(a.t0)}" y="${M.t}" width="${Math.max(x(a.t1) - x(a.t0), 2)}" ` +
+        `height="${H - M.t - M.b}"/>`;
+    });
     const lasts = [];
     c.series.forEach((s, i) => {
       const pts = vis[i];
@@ -136,7 +148,8 @@
     tip.append(head);
     const entry = lastBefore(entries, t), temp = lastBefore(S.outdoorTemp, t);
     const rh = lastBefore(S.projectedRh, t), run = lastBefore(runs, t);
-    if (entry) tipRow('indoor', `${f1(entry.v.indoor_temp)} °C · ${f1(entry.v.indoor_rh)} %`, `intérieur, saisi ${when(entry.t)}`);
+    if (entry) tipRow('indoor', `${f1(entry.v.indoor_temp)} °C · ${f1(entry.v.indoor_rh)} %`,
+      `intérieur, relevé ${when(entry.t)} · ${data.windows[entry.v.windows].toLowerCase()}`);
     if (temp) tipRow('outdoor', `${f1(temp.v)} °C`, 'extérieur');
     if (rh) tipRow('outdoor', `${f1(rh.v)} %`, 'air ext. à T int.');
     if (run) tipRow('', VERDICTS[run.verdict] || run.verdict, 'verdict');
@@ -207,10 +220,11 @@
         change = `${signed(dT)} °C, ${signed(dH)} pts en ${duration(p.t - prev.t)}`;
         rate = `${signed(dT / h)} °C/h, ${signed(dH / h)} pts/h`;
       }
-      rows.unshift([when(p.t), `${f1(p.v.indoor_temp)} °C`, `${f1(p.v.indoor_rh)} %`, change, rate]);
+      rows.unshift([when(p.t), `${f1(p.v.indoor_temp)} °C`, `${f1(p.v.indoor_rh)} %`, data.windows[p.v.windows],
+        change, rate]);
     });
-    fillTable('entries', ['Saisie', 'Température', 'Humidité', 'Depuis la précédente', 'Vitesse'], rows);
-    fillTable('runs', ['Relevé', 'Intérieur', 'Extérieur', 'Air ext. à T int.', 'Verdict'],
+    fillTable('entries', ['Relevé', 'Température', 'Humidité', 'Fenêtres', 'Depuis le précédent', 'Vitesse'], rows);
+    fillTable('runs', ['Passage', 'Intérieur', 'Extérieur', 'Air ext. à T int.', 'Verdict'],
       runs.filter(e => e.t >= t0).reverse().map(e => [when(e.t), `${f1(e.indoor_temp)} °C · ${f1(e.indoor_rh)} %`,
         `${f1(e.outdoor_temp)} °C · ${f1(e.outdoor_rh)} %`, `${f1(e.projected_rh)} %`, VERDICTS[e.verdict] || e.verdict]));
   }

@@ -5,8 +5,8 @@ require 'json'
 require_relative '../config/settings'
 require_relative '../helpers/application_helper'
 
-# report.html: verdict, gauges, evolution charts and measurements.
-# CSS and JS are inlined so the page works on its own.
+# report.html: verdict, readings form, gauges, airing, evolution charts and measurements.
+# CSS and JS are inlined so the page works on its own; the form needs the local server.
 class Page
   include ERB::Util
   include ApplicationHelper
@@ -40,6 +40,31 @@ class Page
     report[:axes][:temperature]
   end
 
+  def airing
+    report[:airing] || {}
+  end
+
+  # Latest reading, for the form's placeholders and window setting
+  def latest
+    (report[:readings] || []).last || {}
+  end
+
+  def reading_form
+    ERB.new(read('templates/_reading_form.html.erb'), trim_mode: '-').result(binding)
+  end
+
+  # "38 min avec 1 fenêtre (mesuré sur 2 aérations)"
+  def half_life(windows)
+    rate = airing[:rates][windows]
+    measured = case rate[:samples]
+               when 0 then 'valeur par défaut, pas encore mesurée'
+               when 1 then 'mesuré sur 1 aération'
+               else "médiane de #{rate[:samples]} aérations"
+               end
+    how = windows == 'one' ? 'avec 1 fenêtre' : "en courant d'air"
+    "<b>#{duration_label(rate[:half_life])}</b> #{how} (#{measured})"
+  end
+
   # Evolution section skeleton, filled by evolution.js
   def evolution
     read('templates/_evolution.html')
@@ -50,20 +75,23 @@ class Page
   end
 
   def script
-    read('assets/evolution.js')
+    read('assets/evolution.js') + read('assets/form.js')
   end
 
   # Data for evolution.js (#chart-data)
   def chart_data
-    data = { updated_at: report[:updated_at], history: report[:history] || [],
-             targets: { temperature: [TEMP_MIN, TEMP_MAX], humidity: [RH_MIN, RH_MAX] } }
+    settings = report[:settings] || {}
+    data = { updated_at: report[:updated_at], history: report[:history] || [], readings: report[:readings] || [],
+             windows: WINDOWS,
+             targets: { temperature: [TEMP_MIN, TEMP_MAX], humidity: [RH_MIN, RH_MAX] },
+             ideals: { temperature: settings[:temp_ideal], humidity: settings[:rh_ideal] } }
     JSON.generate(data).gsub('</', '<\/')
   end
 
-  # Target zone in green, outdoor value above, indoor value below
-  def gauge(target:, inside:, outside:, unit:, outside_label:, pad:)
-    lo = [target[0], inside, outside].min - pad
-    hi = [target[1], inside, outside].max + pad
+  # Target zone in green with the ideal as a line, outdoor value above, indoor value below
+  def gauge(target:, ideal:, inside:, outside:, unit:, outside_label:, pad:)
+    lo = [target[0], ideal, inside, outside].min - pad
+    hi = [target[1], ideal, inside, outside].max + pad
     pos = ->(x) { ((x - lo) / (hi - lo) * 100).round(1) }
     mark = lambda do |cls, x, label|
       pct = pos.call(x)
@@ -76,7 +104,9 @@ class Page
     zone = "left:#{pos.call(target[0])}%;width:#{(pos.call(target[1]) - pos.call(target[0])).round(1)}%"
     <<~HTML
       <div class="scale">
-        <div class="track"><div class="zone" style="#{zone}"></div></div>
+        <div class="track">
+          <div class="zone" style="#{zone}"></div><div class="ideal" style="left:#{pos.call(ideal)}%"></div>
+        </div>
         #{mark.call('outdoor', outside, outside_label)}
         #{mark.call('indoor', inside, 'Dedans')}
       </div>
