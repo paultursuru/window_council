@@ -42,7 +42,8 @@ class Controller
               temperature: axis_fields(decision.temperature, [TEMP_MIN, TEMP_MAX]) },
       indoor: indoor_fields(temp, rh),
       outdoor: outdoor_fields(outdoor),
-      settings: { temp_margin: TEMP_MARGIN, rh_margin: RH_MARGIN, min_outdoor_temp: MIN_OUTDOOR_TEMP }
+      settings: { temp_margin: TEMP_MARGIN, rh_ideal: RH_IDEAL, rh_margin: RH_MARGIN,
+                  min_outdoor_temp: MIN_OUTDOOR_TEMP }
     )
   rescue StandardError => e
     report.merge(error: e.is_a?(Timeout::Error) ? "Délai réseau dépassé (#{TIMEOUT} s)" : e.message)

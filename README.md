@@ -16,11 +16,13 @@ Deux axes sont évalués séparément, puis combinés.
 
 **Humidité.** On ne compare jamais les humidités relatives brutes : 70 % à 12 °C contient moins d'eau que 55 % à 21 °C. Le plugin calcule la **HR projetée**, c'est-à-dire l'humidité qu'aurait l'air extérieur une fois amené à la température de la pièce. Elle se déduit du point de rosée extérieur (formule de Magnus, a = 17.62, b = 243.12) : `HR = 100 × e_s(rosée ext) / e_s(T int)`, avec `e_s(T) = 6.112 × exp(17.62·T / (243.12 + T))`. Exemple : de l'air à 5 °C et 90 %, amené à 21 °C, ne fait plus que 32 %.
 
+L'humidité vise `RH_IDEAL` (50 %), pas seulement la fourchette `RH_MIN`–`RH_MAX`. On ouvre ou on ferme dès que la pièce s'en écarte de plus de `RH_MARGIN`, sans attendre d'atteindre un bord de la fourchette. Seul le sens compte : quelques minutes d'aération rapprochent la pièce de l'idéal bien avant qu'elle n'atteigne la HR projetée. Exemple : à 55 % dedans, un air extérieur qui donnerait 39 % fait ouvrir, et 5 minutes suffisent pour revenir vers 45 %.
+
 | HR intérieure | Ouvrir si… | Sinon |
 |---|---|---|
-| > `RH_MAX` (trop humide) | HR projetée < HR intérieure − `RH_MARGIN` | fermer |
-| < `RH_MIN` (trop sec) | HR projetée > HR intérieure + `RH_MARGIN` | fermer |
-| dans la cible | — (indifférent si la HR projetée reste dans la cible) | fermer si elle en sortirait |
+| > `RH_IDEAL` + `RH_MARGIN` (plutôt humide, trop humide au-dessus de `RH_MAX`) | HR projetée < HR intérieure − `RH_MARGIN` | fermer |
+| < `RH_IDEAL` − `RH_MARGIN` (plutôt sec, trop sec sous `RH_MIN`) | HR projetée > HR intérieure + `RH_MARGIN` | fermer |
+| proche de `RH_IDEAL` | — (indifférent si la HR projetée reste à ±`RH_MARGIN` de la HR intérieure) | fermer si elle s'en écarte davantage |
 
 **Température.**
 
@@ -79,9 +81,10 @@ Le reste se règle dans [`window_council_app/config/settings.rb`](window_council
 | Constante | Défaut | Rôle |
 |---|---|---|
 | `TEMP_MIN`, `TEMP_MAX` | 20, 25 °C | cible de température |
-| `RH_MIN`, `RH_MAX` | 40, 60 % | cible d'humidité |
+| `RH_MIN`, `RH_MAX` | 40, 60 % | cible d'humidité (libellés et jauge) |
+| `RH_IDEAL` | 50 % | humidité visée : on ouvre ou ferme dès que la pièce s'en écarte |
 | `TEMP_MARGIN` | 1.0 °C | écart minimal pour que l'air extérieur corrige la température |
-| `RH_MARGIN` | 3 points | écart minimal pour qu'il corrige l'humidité |
+| `RH_MARGIN` | 3 points | écart minimal pour qu'il corrige l'humidité, et tolérance autour de `RH_IDEAL` |
 | `MIN_OUTDOOR_TEMP` | 5.0 °C | sous ce seuil, pas d'ouverture pour la seule humidité |
 | `INDOOR_TEMP`, `INDOOR_RH` | 21 °C, 60 % | défauts utilisés hors de xbar ; garde-les alignés avec les lignes `<xbar.var>` de `window_council.10m.rb` |
 | `STATION` | `PUY` (Pully) | station MétéoSuisse, par son abréviation (première colonne du CSV ci-dessous) |
@@ -144,7 +147,7 @@ Exemple de `report.json` (cas de conflit ; `history` raccourci à une ligne). Le
   },
   "indoor":   { "entered_at": "2026-10-13T14:38:12+02:00", "temperature": 18.0, "humidity": 68.0, "dew_point": 12.0 },
   "outdoor":  { "measured_at": "2026-10-13T14:30:00+02:00", "temperature": 15.2, "humidity": 67.3, "dew_point": 9.2 },
-  "settings": { "temp_margin": 1.0, "rh_margin": 3.0, "min_outdoor_temp": 5.0 },
+  "settings": { "temp_margin": 1.0, "rh_ideal": 50.0, "rh_margin": 3.0, "min_outdoor_temp": 5.0 },
   "history": [
     { "recorded_at": "2026-10-13T14:41:53+02:00", "verdict": "conflict",
       "entered_at": "2026-10-13T14:38:12+02:00", "indoor_temp": 18.0, "indoor_rh": 68.0,
@@ -188,6 +191,7 @@ bundle exec rubocop
 Les specs couvrent :
 - la HR projetée (5 °C / 90 % → 32 % à 21 °C) et l'aller-retour de Magnus ;
 - les verdicts ouvrir, fermer et indifférent, un conflit et la règle du froid dans ses deux sens ;
+- la visée de `RH_IDEAL` : ouvrir ou fermer selon que l'air extérieur en rapproche la pièce ou l'en éloigne ;
 - le choix de la dernière ligne complète quand une mise à jour MétéoSuisse est incomplète ;
 - la purge et la relecture de l'historique ;
 - la lecture des variables xbar, les erreurs, le menu et la page.

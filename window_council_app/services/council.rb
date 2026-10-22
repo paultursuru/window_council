@@ -13,20 +13,25 @@ module Council
 
   module_function
 
+  # Humidity aims at RH_IDEAL, not just anywhere in the target. What counts is the direction:
+  # a few minutes of airing move the room long before it gets near the projected RH.
   def humidity_axis(indoor_rh, projected_rh)
     air = "l'air extérieur donnerait #{fmt(projected_rh)} %"
-    if indoor_rh > RH_MAX
-      if projected_rh < indoor_rh - RH_MARGIN then Axis.new(:open, "trop humide, #{air}", 'air sec')
-      else Axis.new(:close, "trop humide, mais #{air}", 'trop humide dehors')
+    if indoor_rh > RH_IDEAL + RH_MARGIN
+      state = indoor_rh > RH_MAX ? 'trop humide' : 'plutôt humide'
+      if projected_rh < indoor_rh - RH_MARGIN then Axis.new(:open, "#{state}, #{air}", 'air sec')
+      else Axis.new(:close, "#{state}, mais #{air}", 'trop humide dehors')
       end
-    elsif indoor_rh < RH_MIN
-      if projected_rh > indoor_rh + RH_MARGIN then Axis.new(:open, "trop sec, #{air}", 'air humide')
-      else Axis.new(:close, "trop sec, mais #{air}", 'trop sec dehors')
+    elsif indoor_rh < RH_IDEAL - RH_MARGIN
+      state = indoor_rh < RH_MIN ? 'trop sec' : 'plutôt sec'
+      if projected_rh > indoor_rh + RH_MARGIN then Axis.new(:open, "#{state}, #{air}", 'air humide')
+      else Axis.new(:close, "#{state}, mais #{air}", 'trop sec dehors')
       end
-    elsif projected_rh.between?(RH_MIN, RH_MAX)
-      Axis.new(:indifferent, "dans la cible, #{air}", nil)
+    elsif (projected_rh - indoor_rh).abs > RH_MARGIN
+      away = projected_rh < indoor_rh ? 'trop sec dehors' : 'trop humide dehors'
+      Axis.new(:close, "proche de l'idéal, mais #{air}", away)
     else
-      Axis.new(:close, "dans la cible, mais #{air}", projected_rh < RH_MIN ? 'trop sec dehors' : 'trop humide dehors')
+      Axis.new(:indifferent, "proche de l'idéal, #{air}", nil)
     end
   end
 

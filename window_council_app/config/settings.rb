@@ -10,8 +10,9 @@ TEMP_MIN    = 20.0 # °C
 TEMP_MAX    = 25.0 # °C
 RH_MIN      = 40.0 # %
 RH_MAX      = 60.0 # %
+RH_IDEAL    = 50.0 # %: humidity aims at it, opening or closing as soon as the room drifts away
 TEMP_MARGIN = 1.0  # °C: minimal gap for outdoor air to correct the temperature
-RH_MARGIN   = 3.0  # % points: same for humidity
+RH_MARGIN   = 3.0  # % points: same for humidity, and tolerance around RH_IDEAL
 MIN_OUTDOOR_TEMP = 5.0 # °C: below it, humidity alone never opens the windows
 
 # MeteoSwiss data

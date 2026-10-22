@@ -65,6 +65,8 @@
   <p>Chaque axe compare la pièce à sa cible (zone verte) et regarde si l'air extérieur l'en rapprocherait.
     Pour l'humidité, on calcule celle qu'aurait l'air extérieur une fois à la température de la pièce,
     à partir de son point de rosée : à 5 °C et 90 %, il ne donne plus que 32 % à 21 °C.
+    L'humidité vise <%= format('%g', RH_IDEAL) %> % : on ouvre dès que l'air extérieur en rapproche la pièce,
+    car quelques minutes d'aération suffisent, bien avant d'atteindre cette valeur projetée.
     Si un axe dit d'ouvrir et l'autre de fermer, c'est un conflit. Sous <%= fmt(MIN_OUTDOOR_TEMP) %> °C dehors,
     on n'ouvre pas pour la seule humidité.</p>
 </section>
@@ -81,7 +83,7 @@
   Mis à jour le <%= local_time(report[:updated_at], '%d.%m.%Y à %H:%M') %> ·
   <a href="<%= File.basename(JSON_FILE) %>"><%= File.basename(JSON_FILE) %></a> ·
   <a href="<%= FORECAST_URL %>">MétéoSuisse <%= FORECAST_NAME %></a><br>
-  Cibles <%= range_label([TEMP_MIN, TEMP_MAX], '°C') %> et <%= range_label([RH_MIN, RH_MAX], '%') %> ·
+  Cibles <%= range_label([TEMP_MIN, TEMP_MAX], '°C') %> et <%= range_label([RH_MIN, RH_MAX], '%') %> (idéal <%= format('%g', RH_IDEAL) %> %) ·
   marges ±<%= fmt(TEMP_MARGIN) %> °C et ±<%= fmt(RH_MARGIN) %> pts ·
   le plugin régénère cette page toutes les 10 minutes ; elle se recharge toute seule.
 </footer>
