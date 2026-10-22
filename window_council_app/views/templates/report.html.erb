@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="refresh" content="300">
 <title>Window Council</title>
 <style>
 <%= styles -%>
@@ -19,18 +18,40 @@
   <p><%= h(report[:reason].sub(/\A./, &:upcase)) %>.</p>
 </section>
 
+<%= reading_form %>
 <section class="axis">
   <h2>Humidité relative <span class="pill <%= humidity[:verdict] %>"><%= verdict_name(humidity[:verdict]) %></span></h2>
-  <p class="sub">Cible <%= range_label(humidity[:target], '%') %> · <%= h(humidity[:reason]) %></p>
-  <%= gauge(target: humidity[:target], inside: indoor[:humidity], outside: report[:projected_rh], unit: '%',
-            outside_label: "Air ext. à #{fmt(indoor[:temperature])} °C", pad: 8) -%>
+  <p class="sub">Idéal <%= format('%g', humidity[:ideal]) %> % (trait), cible <%= range_label(humidity[:target], '%') %> ·
+    <%= h(humidity[:reason]) %></p>
+  <%= gauge(target: humidity[:target], ideal: humidity[:ideal], inside: indoor[:humidity],
+            outside: report[:projected_rh], unit: '%', outside_label: "Air ext. à #{fmt(indoor[:temperature])} °C",
+            pad: 8) -%>
 </section>
 
 <section class="axis">
   <h2>Température <span class="pill <%= temperature[:verdict] %>"><%= verdict_name(temperature[:verdict]) %></span></h2>
-  <p class="sub">Cible <%= range_label(temperature[:target], '°C') %> · <%= h(temperature[:reason]) %></p>
-  <%= gauge(target: temperature[:target], inside: indoor[:temperature], outside: outdoor[:temperature], unit: '°C',
-            outside_label: 'Dehors', pad: 3) -%>
+  <p class="sub">Idéal <%= format('%g', temperature[:ideal]) %> °C (trait), cible <%= range_label(temperature[:target], '°C') %> ·
+    <%= h(temperature[:reason]) %></p>
+  <%= gauge(target: temperature[:target], ideal: temperature[:ideal], inside: indoor[:temperature],
+            outside: outdoor[:temperature], unit: '°C', outside_label: 'Dehors', pad: 3) -%>
+</section>
+
+<section class="card airing">
+  <h2>Aération</h2>
+<%- if (open = airing[:open]) -%>
+  <p class="lead"><%= WINDOWS[open[:windows]] %> depuis <%= time_label(open[:since]) %> ·
+    HR estimée à <%= local_time(report[:updated_at]) %> : <b><%= fmt(open[:estimated_rh]) %> %</b></p>
+<%-   if open[:close_at] -%>
+  <p class="lead"><%= open[:due] ? 'Cible atteinte : ferme' : "Ferme vers <b>#{local_time(open[:close_at])}</b>" %>,
+    puis saisis un relevé pour mesurer cette aération.</p>
+<%-   end -%>
+<%- elsif (durations = airing[:durations]) -%>
+  <p class="lead">Pour passer de <%= fmt(indoor[:humidity]) %> % à <b><%= fmt(airing[:target_rh]) %> %</b> :
+    <b>1 fenêtre ~<%= duration_label(durations['one']) %></b> ou <b>courant d'air ~<%= duration_label(durations['cross']) %></b>.</p>
+<%- end -%>
+  <p class="sub">L'écart entre l'humidité de la pièce et celle de l'air extérieur se réduit de moitié en
+    <%= half_life('one') %> et en <%= half_life('cross') %>. La température bouge à peine pendant une aération courte :
+    les murs gardent la chaleur. Après la fermeture, l'humidité remonte un peu, rendue par les murs et les meubles.</p>
 </section>
 
 <%= evolution %>
@@ -51,7 +72,7 @@
   </section>
   <section class="card">
     <h2>Intérieur</h2>
-    <p class="sub">Hygromètre · saisi dans xbar</p>
+    <p class="sub">Hygromètre · relevé de <%= time_label(indoor[:entered_at]) %></p>
     <dl>
       <dt>Température</dt><dd><%= fmt(indoor[:temperature]) %> °C</dd>
       <dt>Humidité relative</dt><dd><%= fmt(indoor[:humidity]) %> %</dd>
@@ -62,11 +83,11 @@
 
 <section class="note">
   <h2>Comment c'est décidé</h2>
-  <p>Chaque axe compare la pièce à sa cible (zone verte) et regarde si l'air extérieur l'en rapprocherait.
+  <p>Chaque axe vise son idéal (le trait) et regarde si l'air extérieur en rapprocherait la pièce.
     Pour l'humidité, on calcule celle qu'aurait l'air extérieur une fois à la température de la pièce,
     à partir de son point de rosée : à 5 °C et 90 %, il ne donne plus que 32 % à 21 °C.
-    L'humidité vise <%= format('%g', RH_IDEAL) %> % : on ouvre dès que l'air extérieur en rapproche la pièce,
-    car quelques minutes d'aération suffisent, bien avant d'atteindre cette valeur projetée.
+    On ouvre dès que l'air extérieur rapproche la pièce de son idéal, car quelques minutes d'aération suffisent,
+    bien avant d'atteindre cette valeur projetée. Près de l'idéal de température, l'aération est indifférente.
     Si un axe dit d'ouvrir et l'autre de fermer, c'est un conflit. Sous <%= fmt(MIN_OUTDOOR_TEMP) %> °C dehors,
     on n'ouvre pas pour la seule humidité.</p>
 </section>
@@ -77,13 +98,18 @@
   <pre><%= h(report[:error]) %></pre>
 </section>
 
+<%= reading_form %>
 <%= evolution %>
 <% end -%>
 <footer>
   Mis à jour le <%= local_time(report[:updated_at], '%d.%m.%Y à %H:%M') %> ·
   <a href="<%= File.basename(JSON_FILE) %>"><%= File.basename(JSON_FILE) %></a> ·
   <a href="<%= FORECAST_URL %>">MétéoSuisse <%= FORECAST_NAME %></a><br>
-  Cibles <%= range_label([TEMP_MIN, TEMP_MAX], '°C') %> et <%= range_label([RH_MIN, RH_MAX], '%') %> (idéal <%= format('%g', RH_IDEAL) %> %) ·
+<%- if report[:settings] -%>
+  Idéaux <%= format('%g', report[:settings][:temp_ideal]) %> °C et <%= format('%g', report[:settings][:rh_ideal]) %> %
+  (variables xbar, ⌘E) ·
+<%- end -%>
+  cibles <%= range_label([TEMP_MIN, TEMP_MAX], '°C') %> et <%= range_label([RH_MIN, RH_MAX], '%') %> ·
   marges ±<%= fmt(TEMP_MARGIN) %> °C et ±<%= fmt(RH_MARGIN) %> pts ·
   le plugin régénère cette page toutes les 10 minutes ; elle se recharge toute seule.
 </footer>

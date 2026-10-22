@@ -7,24 +7,28 @@
   </div>
   <figure class="chart">
     <figcaption><b>Température</b>
-      <span><i class="key indoor"></i>Intérieur (● saisies)</span>
+      <span><i class="key indoor"></i>Intérieur (● relevés)</span>
       <span><i class="key outdoor"></i>Extérieur</span>
-      <span><i class="key target"></i>Cible</span></figcaption>
+      <span><i class="key target"></i>Cible</span>
+      <span><i class="key ideal"></i>Idéal</span>
+      <span><i class="key airing"></i>Fenêtres ouvertes</span></figcaption>
     <div class="plot" id="plot-temp" tabindex="0" role="img" aria-label="Température intérieure et extérieure"></div>
   </figure>
   <figure class="chart">
     <figcaption><b>Humidité relative</b>
-      <span><i class="key indoor"></i>Intérieur (● saisies)</span>
+      <span><i class="key indoor"></i>Intérieur (● relevés)</span>
       <span><i class="key outdoor"></i>Air extérieur ramené à la température intérieure</span>
-      <span><i class="key target"></i>Cible</span></figcaption>
+      <span><i class="key target"></i>Cible</span>
+      <span><i class="key ideal"></i>Idéal</span>
+      <span><i class="key airing"></i>Fenêtres ouvertes</span></figcaption>
     <div class="plot" id="plot-rh" tabindex="0" role="img" aria-label="Humidité intérieure et humidité projetée de l'air extérieur"></div>
   </figure>
   <div class="tip" id="tip" hidden></div>
-  <h3>Saisies de l'hygromètre</h3>
-  <p class="sub">Heure exacte de chaque saisie dans xbar, et vitesse de variation depuis la précédente.</p>
+  <h3>Relevés de l'hygromètre</h3>
+  <p class="sub">Heure de chaque relevé, état des fenêtres à partir de là, et vitesse de variation depuis le précédent.</p>
   <div class="scroll"><table id="entries"></table></div>
   <details>
-    <summary>Tous les relevés de la période</summary>
+    <summary>Tous les passages du plugin sur la période</summary>
     <div class="scroll"><table id="runs"></table></div>
   </details>
   <noscript><p class="sub">Le graphique a besoin de JavaScript ; les données sont dans report.json.</p></noscript>

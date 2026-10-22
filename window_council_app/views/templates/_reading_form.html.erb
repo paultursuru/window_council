@@ -1,0 +1,29 @@
+<section class="card entry" id="saisie">
+  <h2>Nouveau relevé</h2>
+  <form method="post" action="/readings" id="reading-form">
+    <div class="fields">
+      <label>Température
+        <span class="input"><input name="temperature" inputmode="decimal" autocomplete="off" required
+          placeholder="<%= latest['temperature'] && fmt(latest['temperature']) %>"> °C</span></label>
+      <label>Humidité
+        <span class="input"><input name="humidity" inputmode="decimal" autocomplete="off" required
+          placeholder="<%= latest['humidity'] && fmt(latest['humidity']) %>"> %</span></label>
+      <label><span>Heure <small>(vide = maintenant)</small></span>
+        <span class="input"><input name="time" type="time"></span></label>
+    </div>
+    <fieldset>
+      <legend>Fenêtres à partir de ce relevé</legend>
+<%- WINDOWS.each do |value, label| -%>
+      <label class="choice"><input type="radio" name="windows" value="<%= value %>"<%= ' checked' if value == (latest['windows'] || 'closed') %>> <%= label %></label>
+<%- end -%>
+    </fieldset>
+    <div class="actions">
+      <button type="submit">Enregistrer</button>
+      <span class="status" id="form-status" role="status"></span>
+    </div>
+  </form>
+  <p class="sub" id="form-offline" hidden>Pour saisir un relevé, ouvre la page depuis le menu xbar :
+    « Saisir un relevé, voir le détail… ».</p>
+  <p class="sub">Pour mesurer une aération, saisis un relevé en ouvrant (avec l'état des fenêtres), puis un autre en
+    fermant. Ressaisir un relevé à la même heure le corrige.</p>
+</section>
