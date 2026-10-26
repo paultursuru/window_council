@@ -53,6 +53,19 @@ Fenêtres ouvertes, l'écart entre l'humidité de la pièce et celle de l'air ex
   - La page traduit la vitesse en demi-vie, c'est-à-dire le temps pour que l'écart avec l'air extérieur diminue de moitié (environ 42 min avec une fenêtre, d'après cette aération).
 - **Après la fermeture**, l'humidité remonte un peu : les murs, les textiles et les meubles rendent de l'eau. Le modèle n'en tient pas compte ; un relevé une heure plus tard permet de le voir.
 
+## Rappel pour fermer
+
+Quand tu saisis un relevé fenêtres ouvertes, le plugin crée un rappel « Fermer les fenêtres » dans l'app Rappels, à l'heure de fermeture. C'est macOS qui le fait sonner : aucun programme ne reste à attendre, et si tes rappels sont synchronisés avec iCloud, il sonne aussi sur l'iPhone ou la montre, même quand le Mac est en veille.
+
+- Le rappel est créé dans la liste « Window Council » (`REMINDER_LIST`), ajoutée au premier rappel.
+- Son heure est celle calculée au moment du relevé. Celle du menu peut ensuite bouger de quelques minutes avec les nouvelles mesures MétéoSuisse.
+- Le relevé suivant le remplace (fenêtres toujours ouvertes, ou relevé corrigé à la même heure) ou le supprime (fenêtres fermées). Il est aussi supprimé après 6 h sans relevé.
+- Pas de rappel quand l'aération n'a pas d'heure de fermeture, ni pour un relevé saisi après cette heure : la barre de menu affiche déjà `🪟⏰`.
+
+Le menu indique **🔔 Rappel pour fermer : activé**, avec l'heure du rappel quand il y en a un. Un clic le désactive (🔕) et supprime le rappel en attente, un autre le réactive. Il est activé par défaut.
+
+La première fois, macOS demande d'autoriser xbar à contrôler Rappels. En cas de refus, le menu affiche l'erreur ; l'autorisation se change dans Réglages Système > Confidentialité et sécurité > Automatisation. Si Rappels ne répond pas, le plugin réessaie au passage suivant.
+
 ## Installation
 
 Il faut [xbar](https://xbarapp.com) :
@@ -118,6 +131,8 @@ Le reste se règle dans [`window_council_app/config/settings.rb`](window_council
 | `AIRING_RATES` | 1 fenêtre : 1.0 /h, courant d'air : 4.0 /h | vitesse d'aération tant qu'aucune aération n'a été mesurée |
 | `SERVER_PORT` | 47830 | port du serveur local du formulaire |
 | `SERVER_IDLE` | 30 min | arrêt du serveur après ce délai sans requête |
+| `REMINDER_LIST` | `Window Council` | liste de l'app Rappels où est créé le rappel pour fermer |
+| `REMINDER_TIMEOUT` | 30 s | attente maximale de Rappels (la première fois, il attend que tu autorises l'accès) |
 | `STATION` | `PUY` (Pully) | station MétéoSuisse, par son abréviation (première colonne du CSV ci-dessous) |
 | `FORECAST_NAME`, `FORECAST_URL` | Lausanne | lien vers les prévisions locales, dans le menu et la page |
 | `TIMEOUT` | 5 s | timeout réseau |
@@ -136,6 +151,7 @@ Le reste se règle dans [`window_council_app/config/settings.rb`](window_council
     ├── …                             ← le code
     └── data/
         ├── readings.json             ← relevés de l'hygromètre, saisis sur la page
+        ├── reminder.json             ← rappel pour fermer : activé ou non, rappel en cours
         ├── report.json               ← dernier verdict + historique
         ├── report.html               ← la page (menu > « Saisir un relevé, voir le détail… »)
         └── server.log                ← erreurs du serveur local, s'il y en a
@@ -144,6 +160,7 @@ Le reste se règle dans [`window_council_app/config/settings.rb`](window_council
 Tout est dans un sous-dossier : xbar exécute comme un plugin tout fichier posé directement dans son dossier, sauf les fichiers cachés, les dossiers et les `.vars.json`.
 
 - **`readings.json`** contient tous les relevés de l'hygromètre, triés par heure : `at`, `temperature`, `humidity`, `windows` (`closed`, `one` ou `cross` ; absent pour les anciennes saisies, comptées comme fermées) et `outdoor_dew_point`. Le point de rosée extérieur au moment du relevé est repris de l'historique ; il sert à mesurer les aérations. Ce fichier n'est jamais purgé. S'il devenait illisible, le menu afficherait l'erreur plutôt que de repartir de zéro.
+- **`reminder.json`** dit si le rappel pour fermer est activé (`enabled`) et décrit le rappel en cours : son identifiant dans Rappels (`id`), son heure (`at`) et le relevé d'ouverture dont il vient (`airing`). Sans ce fichier, le rappel est activé.
 - **`report.json`** contient le dernier verdict complet, le plan d'aération (`airing`), les relevés des `HISTORY_DAYS` derniers jours et un `history`.
   - L'historique compte une ligne par passage réussi du plugin, sur `HISTORY_DAYS` jours : environ 1 000 lignes et 400 Ko pour 7 jours.
   - Chaque valeur y garde sa vraie date : `entered_at` pour le relevé de l'hygromètre, `measured_at` pour MétéoSuisse et `recorded_at` pour l'exécution du plugin.

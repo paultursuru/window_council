@@ -37,6 +37,10 @@ RSpec.configure do |config|
   config.before do
     stub_const('DATA_DIR', @data_dir)
     { 'JSON_FILE' => 'report.json', 'HTML_FILE' => 'report.html', 'READINGS_FILE' => 'readings.json',
-      'LOCK_FILE' => '.lock' }.each { |name, file| stub_const(name, File.join(@data_dir, file)) }
+      'REMINDER_FILE' => 'reminder.json', 'LOCK_FILE' => '.lock' }.each do |name, file|
+      stub_const(name, File.join(@data_dir, file))
+    end
+    # Never the real Reminders app (nor osascript, missing on Linux)
+    allow(CloseReminder).to receive(:osascript).and_return('x-apple-reminder://TEST')
   end
 end

@@ -5,6 +5,7 @@ require 'timeout' # Timeout::Error, without waiting for open-uri to load net/htt
 require_relative 'config/settings'
 require_relative 'helpers/application_helper'
 require_relative 'services/airing'
+require_relative 'services/close_reminder'
 require_relative 'services/council'
 require_relative 'services/history'
 require_relative 'services/meteoswiss'
@@ -14,7 +15,7 @@ require_relative 'services/storage'
 require_relative 'views/menu'
 require_relative 'views/page'
 
-# One plugin run: build the report, write the JSON and HTML, print the xbar menu.
+# One plugin run: build the report, write the JSON and HTML, set the reminder to close, print the xbar menu.
 class Controller
   include ApplicationHelper
 
@@ -25,12 +26,15 @@ class Controller
 
   def run
     report = build_report
-    puts Menu.new(report, save(report)).lines
+    save_error = save(report)
+    puts Menu.new(report, save_error, CloseReminder.sync(report)).lines
   end
 
-  # After a reading from the form; returns an error message, or nil
+  # After a reading from the form, which sets the reminder when windows open; returns an error message, or nil
   def refresh
-    save(build_report)
+    report = build_report
+    CloseReminder.sync(report)
+    save(report)
   end
 
   def build_report
