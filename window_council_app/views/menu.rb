@@ -7,15 +7,18 @@ require_relative '../helpers/application_helper'
 class Menu
   include ApplicationHelper
 
-  def initialize(report, save_error = nil)
+  # reminder: CloseReminder state, for its on/off item
+  def initialize(report, save_error = nil, reminder = nil)
     @report = report
     @save_error = save_error
+    @reminder = reminder
     @verdict = VERDICTS[report[:verdict]]
   end
 
   def lines
     body = @verdict ? [*header, '---', *axes, *airing, '---', *outdoor, '---', *indoor] : error
-    body + ['---', *page_links, "MétéoSuisse — #{FORECAST_NAME} | href=#{FORECAST_URL}", 'Rafraîchir | refresh=true']
+    body + ['---', *page_links, *reminder, "MétéoSuisse — #{FORECAST_NAME} | href=#{FORECAST_URL}",
+            'Rafraîchir | refresh=true']
   end
 
   private
@@ -95,5 +98,19 @@ class Menu
 
     ["Saisir un relevé, voir le détail… | shell=#{RbConfig.ruby} param1=\"#{SERVER_FILE}\" terminal=false",
      "Voir le détail, sans formulaire… | href=\"#{HTML_FILE}\" alternate=true"]
+  end
+
+  # A click turns it on or off; the refresh that follows sets or deletes the reminder
+  def reminder
+    return [] unless @reminder
+
+    at = @reminder['at']
+    label = if !@reminder['enabled'] then '🔕 Rappel pour fermer : désactivé'
+            elsif !at then '🔔 Rappel pour fermer : activé'
+            elsif time_at(at) > Time.now then "🔔 Rappel pour fermer : activé, sonne à #{local_time(at)}"
+            else "🔔 Rappel pour fermer : activé, a sonné à #{local_time(at)}"
+            end
+    ["#{label} | shell=#{RbConfig.ruby} param1=\"#{TOGGLE_FILE}\" terminal=false refresh=true",
+     *(@reminder['error'] && "⚠️ #{@reminder['error'].tr('|', '/')}")]
   end
 end

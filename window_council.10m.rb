@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 # <xbar.title>Window Council</xbar.title>
-# <xbar.version>v2.1</xbar.version>
+# <xbar.version>v2.2</xbar.version>
 # <xbar.author>Paul Lahana</xbar.author>
 # <xbar.author.github>paultursuru</xbar.author.github>
 # <xbar.desc>Ouvrir ou fermer les fenêtres ? Croise humidité et température intérieures avec l'air extérieur (MétéoSuisse).</xbar.desc>

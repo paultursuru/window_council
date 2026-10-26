@@ -42,6 +42,16 @@ RSpec.describe Controller do
     end
   end
 
+  describe '#refresh' do
+    it 'sets the reminder to close after a reading that opens the windows' do
+      opened = reading(21.0, 46.0, time: ApplicationHelper.iso(Time.now - 60), windows: 'cross')
+      build_report(readings: [opened], vars: { 'VAR_RH_IDEAL' => '42' })
+
+      expect(controller.refresh).to be_nil
+      expect(CloseReminder.read).to include('id' => 'x-apple-reminder://TEST')
+    end
+  end
+
   describe '#save' do
     it 'writes the JSON and the page, adding each successful run to the history' do
       report = build_report

@@ -37,11 +37,17 @@ SERVER_PORT = 47_830
 SERVER_IDLE = 30 # min without a request before the server stops; the open page reloads every 5 min
 SERVER_FILE = File.expand_path('../server.rb', __dir__)
 
+# Reminder to close the windows, in the Reminders app (menu > Rappel pour fermer, to turn it on or off)
+REMINDER_LIST    = 'Window Council' # list created for it in Reminders
+REMINDER_TIMEOUT = 30 # s: Reminders' answer, which waits for the user the first time (access to Reminders)
+TOGGLE_FILE      = File.expand_path('../toggle_reminder.rb', __dir__)
+
 # Generated files, in a subfolder: xbar would run any file at the top of its plugins folder
 DATA_DIR      = File.expand_path('../data', __dir__)
 JSON_FILE     = File.join(DATA_DIR, 'report.json')
 HTML_FILE     = File.join(DATA_DIR, 'report.html')
 READINGS_FILE = File.join(DATA_DIR, 'readings.json')
+REMINDER_FILE = File.join(DATA_DIR, 'reminder.json')
 LOCK_FILE     = File.join(DATA_DIR, '.lock')
 LOG_FILE      = File.join(DATA_DIR, 'server.log')
 HISTORY_DAYS  = 7
